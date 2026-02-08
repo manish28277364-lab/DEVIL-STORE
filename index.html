@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Devil Store</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+body{
+  margin:0;
+  font-family:monospace;
+  background:#05080f;
+  color:#e5e7eb;
+}
+header{
+  padding:14px;
+  background:#020617;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  border-bottom:1px solid #0f172a;
+}
+header h2{color:#22c55e;margin:0}
+header button{
+  background:transparent;
+  color:#22c55e;
+  border:1px solid #22c55e;
+  padding:6px 14px;
+  border-radius:6px;
+}
+
+input,select,button{
+  width:100%;
+  padding:12px;
+  margin:6px 0;
+  background:#020617;
+  border:1px solid #1e293b;
+  color:white;
+  border-radius:8px;
+}
+
+.search{padding:10px}
+.grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:12px;
+  padding:12px;
+}
+.card{
+  background:#020617;
+  border-radius:14px;
+  padding:12px;
+}
+.card img{
+  width:64px;
+  height:64px;
+  border-radius:12px;
+}
+.card h3{margin:6px 0 2px;font-size:14px}
+.card p{font-size:12px;color:#9ca3af}
+.star{color:gold;font-size:12px}
+.btn{
+  display:block;
+  margin-top:8px;
+  background:#22c55e;
+  color:black;
+  text-align:center;
+  padding:8px;
+  border-radius:8px;
+  text-decoration:none;
+  font-weight:bold;
+}
+
+#admin{display:none;padding:12px}
+.add{background:#22c55e;color:black;font-weight:bold}
+.delete{background:#dc2626;border:none;margin-top:6px}
+
+.catbar{
+  display:flex;
+  gap:8px;
+  overflow-x:auto;
+  padding:10px;
+}
+.cat{
+  padding:6px 14px;
+  border:1px solid #22c55e;
+  color:#22c55e;
+  border-radius:20px;
+  font-size:12px;
+}
+.cat.active{background:#22c55e;color:black}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h2>DEVIL STORE</h2>
+  <button onclick="openAdmin()">ADMIN</button>
+</header>
+
+<div id="user">
+  <div class="search">
+    <input id="search" placeholder="Search apps..." oninput="renderUser()">
+  </div>
+
+  <div class="catbar" id="cats"></div>
+  <div class="grid" id="apps"></div>
+</div>
+
+<div id="admin">
+  <h3>Admin Panel</h3>
+
+  <input id="name" placeholder="App Name">
+  <input id="icon" placeholder="Icon URL">
+  <input id="size" placeholder="App Size (e.g. 340 MB)">
+  <input id="link" placeholder="APK / Download Link">
+
+  <select id="category">
+    <option value="Games">Games</option>
+    <option value="Mods">Mods</option>
+    <option value="Apps">Apps</option>
+    <option value="Tools">Tools</option>
+  </select>
+
+  <select id="rating">
+    <option value="5">⭐⭐⭐⭐⭐</option>
+    <option value="4">⭐⭐⭐⭐</option>
+    <option value="3">⭐⭐⭐</option>
+    <option value="2">⭐⭐</option>
+    <option value="1">⭐</option>
+  </select>
+
+  <button class="add" onclick="addApp()">ADD APP</button>
+
+  <h3>Manage Apps</h3>
+  <div id="manage"></div>
+</div>
+
+<script>
+const OWNER_KEY="devil_owner";
+const PIN_KEY="devil_pin";
+
+if(!localStorage.getItem(OWNER_KEY)){
+  const p=prompt("Set Admin PIN");
+  if(p){
+    localStorage.setItem(OWNER_KEY,"1");
+    localStorage.setItem(PIN_KEY,p);
+  }
+}
+
+let apps = JSON.parse(localStorage.getItem("devilApps")) || [];
+let currentCat="All";
+
+const categories=["All","Games","Mods","Apps","Tools"];
+const catsDiv=document.getElementById("cats");
+
+categories.forEach(c=>{
+  const d=document.createElement("div");
+  d.className="cat"+(c==="All"?" active":"");
+  d.innerText=c;
+  d.onclick=()=>{
+    document.querySelectorAll(".cat").forEach(x=>x.classList.remove("active"));
+    d.classList.add("active");
+    currentCat=c;
+    renderUser();
+  };
+  catsDiv.appendChild(d);
+});
+
+function stars(n){return "⭐".repeat(n);}
+
+function renderUser(){
+  const q=document.getElementById("search").value.toLowerCase();
+  const box=document.getElementById("apps");
+  box.innerHTML="";
+  apps.filter(a=>{
+    return (currentCat==="All"||a.category===currentCat)
+      && a.name.toLowerCase().includes(q);
+  }).forEach(a=>{
+    box.innerHTML+=`
+    <div class="card">
+      <img src="${a.icon}">
+      <h3>${a.name}</h3>
+      <p>${a.size}</p>
+      <div class="star">${stars(a.rating)}</div>
+      <a class="btn" href="${a.link}">DOWNLOAD</a>
+    </div>`;
+  });
+}
+
+function renderAdmin(){
+  const m=document.getElementById("manage");
+  m.innerHTML="";
+  apps.forEach((a,i)=>{
+    m.innerHTML+=`
+    <div class="card">
+      ${a.name}
+      <button class="delete" onclick="del(${i})">DELETE</button>
+    </div>`;
+  });
+}
+
+function addApp(){
+  const app={
+    name:document.getElementById("name").value.trim(),
+    icon:document.getElementById("icon").value.trim(),
+    size:document.getElementById("size").value.trim(),
+    link:document.getElementById("link").value.trim(),
+    category:document.getElementById("category").value,
+    rating:Number(document.getElementById("rating").value)
+  };
+
+  if(!app.name||!app.icon||!app.size||!app.link){
+    alert("Fill all fields");
+    return;
+  }
+
+  apps.push(app);
+  localStorage.setItem("devilApps",JSON.stringify(apps));
+
+  alert("App Added 😈");
+
+  ["name","icon","size","link"].forEach(id=>document.getElementById(id).value="");
+  renderUser(); renderAdmin();
+}
+
+function del(i){
+  apps.splice(i,1);
+  localStorage.setItem("devilApps",JSON.stringify(apps));
+  renderUser(); renderAdmin();
+}
+
+function openAdmin(){
+  const p=prompt("Enter PIN");
+  if(p===localStorage.getItem(PIN_KEY)){
+    admin.style.display=admin.style.display==="block"?"none":"block";
+    user.style.display=admin.style.display==="block"?"none":"block";
+    renderAdmin();
+  }else alert("Wrong PIN");
+}
+
+renderUser();
+</script>
+
+</body>
+</html>
