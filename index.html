@@ -2,249 +2,188 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Devil Store</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DEVIL STORE</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 
 <style>
-body{
-  margin:0;
-  font-family:Arial;
-  background:#020b06;
-  color:#fff;
-}
+body{margin:0;background:#000;color:#0f0;font-family:Arial}
+header{background:#111;padding:12px;display:flex;justify-content:space-between;align-items:center}
+button{background:#0f0;color:#000;border:none;padding:7px 12px;border-radius:6px;margin:3px}
+input,select{width:100%;padding:7px;margin:5px 0;background:#000;border:1px solid #0f0;color:#0f0}
+.app{border:1px solid #0f0;margin:10px;padding:10px;border-radius:10px;display:flex;gap:10px}
+.app img{width:60px;height:60px;border-radius:10px;object-fit:cover}
 .hidden{display:none}
-
-header{
-  background:#03140b;
-  padding:12px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-header h1{margin:0;color:#00ff99}
-
-button{
-  background:#00ff99;
-  border:none;
-  padding:8px 14px;
-  border-radius:6px;
-  font-weight:bold;
-  cursor:pointer;
-}
-
-input,select{
-  width:100%;
-  margin:6px 0;
-  padding:10px;
-  background:#000;
-  border:1px solid #00ff99;
-  color:#00ff99;
-  border-radius:6px;
-}
-
-.card{
-  background:#03140b;
-  margin:10px;
-  padding:10px;
-  border-radius:10px;
-  display:flex;
-  gap:12px;
-  align-items:center;
-}
-
-.card img{
-  width:70px;
-  height:70px;
-  border-radius:14px;
-}
-
-.star{
-  color:gold;
-  font-size:14px;
-}
-
-.category-bar{
-  display:flex;
-  gap:8px;
-  overflow-x:auto;
-  padding:10px;
-}
-
-#toast{
-  position:fixed;
-  bottom:20px;
-  left:50%;
-  transform:translateX(-50%);
-  background:#00ff99;
-  color:#000;
-  padding:10px 18px;
-  border-radius:20px;
-  display:none;
-}
+.star{color:gold}
+small{color:#9f9}
 </style>
 </head>
 
 <body>
 
 <header>
-  <h1>😈 DEVIL STORE</h1>
-  <button onclick="toggleMode()" id="modeBtn">ADMIN</button>
+<b>😈 DEVIL STORE</b>
+<div>
+<button onclick="userMode()">USER</button>
+<button onclick="adminLogin()">ADMIN</button>
+</div>
 </header>
 
-<!-- USER -->
-<div id="user">
-  <input id="search" placeholder="Search apps..." oninput="render()">
+<div style="padding:10px">
+<input id="search" placeholder="Search apps..." oninput="render()">
 
-  <div class="category-bar">
-    <button onclick="setCat('All')">All</button>
-    <button onclick="setCat('Games')">Games</button>
-    <button onclick="setCat('Apps')">Apps</button>
-    <button onclick="setCat('Tools')">Tools</button>
-    <button onclick="setCat('Mods')">Mods</button>
-    <button onclick="setCat('Premium')">Premium</button>
-  </div>
-
-  <div id="list"></div>
+<div>
+<button onclick="setCat('All')">All</button>
+<button onclick="setCat('Games')">Games</button>
+<button onclick="setCat('Apps')">Apps</button>
+<button onclick="setCat('Tools')">Tools</button>
+<button onclick="setCat('Mods')">Mods</button>
+</div>
 </div>
 
-<!-- ADMIN -->
-<div id="admin" class="hidden">
-  <h3 style="padding-left:10px">Admin Panel</h3>
+<!-- ADMIN PANEL -->
+<div id="adminPanel" class="hidden" style="padding:10px;border-top:2px solid #0f0">
+<h3>ADMIN PANEL</h3>
 
-  <input id="name" placeholder="App name (Play Store style)">
-  <input id="icon" placeholder="Icon image URL">
-  <input id="size" placeholder="App size (e.g. 340 MB)">
-  <input id="link" placeholder="Download link (optional)">
-  <input type="file" id="apk" accept=".apk">
+<input id="name" placeholder="App Name">
+<input id="icon" placeholder="Icon Image URL">
+<input id="manualLink" placeholder="Manual Download Link (optional)">
+<input type="file" id="file">
 
-  <select id="cat">
-    <option>Games</option>
-    <option>Apps</option>
-    <option>Tools</option>
-    <option>Mods</option>
-    <option>Premium</option>
-  </select>
+<select id="cat">
+<option>Games</option>
+<option>Apps</option>
+<option>Tools</option>
+<option>Mods</option>
+</select>
 
-  <select id="rate">
-    <option>5</option><option>4</option><option>3</option>
-    <option>2</option><option>1</option>
-  </select>
+<select id="rating">
+<option value="5">★★★★★</option>
+<option value="4">★★★★</option>
+<option value="3">★★★</option>
+<option value="2">★★</option>
+<option value="1">★</option>
+</select>
 
-  <button onclick="addApp()">ADD APP</button>
-
-  <h3 style="padding-left:10px">Manage Apps</h3>
-  <div id="manage"></div>
+<button onclick="addApp()">ADD APP</button>
 </div>
 
-<div id="toast"></div>
+<div id="apps"></div>
 
 <script>
-let admin=false, cat="All";
-let apps=JSON.parse(localStorage.getItem("devilStore"))||[];
+/* FIREBASE CONFIG */
+firebase.initializeApp({
+  apiKey:"AIzaSyApZh6LLiR8NIVISOF49eMW0S9oAy0ETeY",
+  databaseURL:"https://devil-mods-2-default-rtdb.firebaseio.com",
+  storageBucket:"devil-mods-2.firebasestorage.app"
+});
 
-const user=document.getElementById("user");
-const adminBox=document.getElementById("admin");
-const list=document.getElementById("list");
-const manage=document.getElementById("manage");
-const toast=document.getElementById("toast");
-const btn=document.getElementById("modeBtn");
+const db = firebase.database();
+const storage = firebase.storage();
 
-function toastMsg(t){
-  toast.innerText=t;
-  toast.style.display="block";
-  setTimeout(()=>toast.style.display="none",2000);
+let isAdmin=false, apps={}, currentCat="All";
+
+/* ADMIN / USER */
+function adminLogin(){
+  const p = prompt("Enter Admin Password");
+  if(p==="DEVILPAPA"){
+    isAdmin=true;
+    adminPanel.classList.remove("hidden");
+    render();
+  } else alert("Wrong password");
+}
+function userMode(){
+  isAdmin=false;
+  adminPanel.classList.add("hidden");
+  render();
 }
 
-function toggleMode(){
-  if(!admin){
-    let p=prompt("Enter Admin Password");
-    if(p!=="DEVILPAPA"){toastMsg("Wrong Password");return;}
-    admin=true;
-    adminBox.classList.remove("hidden");
-    user.classList.add("hidden");
-    btn.innerText="USER";
+/* ADD APP */
+function addApp(){
+  const name = document.getElementById("name").value.trim();
+  const icon = document.getElementById("icon").value.trim();
+  const manual = document.getElementById("manualLink").value.trim();
+  const cat = document.getElementById("cat").value;
+  const rating = document.getElementById("rating").value;
+  const file = document.getElementById("file").files[0];
+
+  if(!name || !icon){
+    alert("Name & Icon URL required");
+    return;
+  }
+
+  const id = db.ref("apps").push().key;
+
+  if(file){
+    const ref = storage.ref("apps/"+id+"_"+file.name);
+    ref.put(file).then(snap=>{
+      snap.ref.getDownloadURL().then(url=>{
+        db.ref("apps/"+id).set({
+          name, icon, cat, rating,
+          link: manual || url,
+          size: (file.size/1024/1024).toFixed(2)+" MB"
+        });
+      });
+    });
   }else{
-    admin=false;
-    adminBox.classList.add("hidden");
-    user.classList.remove("hidden");
-    btn.innerText="ADMIN";
+    db.ref("apps/"+id).set({
+      name, icon, cat, rating,
+      link: manual,
+      size: "N/A"
+    });
+  }
+
+  document.getElementById("name").value="";
+  document.getElementById("icon").value="";
+  document.getElementById("manualLink").value="";
+  document.getElementById("file").value="";
+}
+
+/* DELETE (ADMIN ONLY) */
+function del(id){
+  if(!isAdmin) return;
+  if(confirm("Delete app?")){
+    db.ref("apps/"+id).remove();
   }
 }
 
-function setCat(c){cat=c;render();}
+/* FILTERS */
+function setCat(c){ currentCat=c; render(); }
 
-function stars(n){
-  return "★".repeat(n)+"☆".repeat(5-n);
-}
-
-function addApp(){
-  let name=nameEl().value||"Unknown App";
-  let icon=iconEl().value||"https://i.imgur.com/8Km9tLL.png";
-  let size=sizeEl().value||"0 MB";
-  let link=linkEl().value;
-  let apk=apkEl().files[0];
-  let c=catEl().value;
-  let r=rateEl().value;
-
-  if(apk) link=URL.createObjectURL(apk);
-  if(!link){toastMsg("APK or Link required");return;}
-
-  apps.push({name,icon,size,link,c,r});
-  save();
-  toastMsg("App Added");
-  render();
-}
-
-function removeApp(i){
-  apps.splice(i,1);
-  save();
-  render();
-}
-
-function save(){
-  localStorage.setItem("devilStore",JSON.stringify(apps));
-}
-
+/* RENDER */
 function render(){
-  let q=search.value.toLowerCase();
-  list.innerHTML="";
-  manage.innerHTML="";
+  const q = document.getElementById("search").value.toLowerCase();
+  const box = document.getElementById("apps");
+  box.innerHTML="";
 
-  apps.forEach((a,i)=>{
-    if(!a.name.toLowerCase().includes(q))return;
-    if(cat!=="All" && a.c!==cat)return;
+  for(let id in apps){
+    const a = apps[id];
+    if(currentCat!=="All" && a.cat!==currentCat) continue;
+    if(!a.name.toLowerCase().includes(q)) continue;
 
-    list.innerHTML+=`
-      <div class="card">
-        <img src="${a.icon}">
-        <div>
-          <b>${a.name}</b><br>
-          ${a.size} • ${a.c}<br>
-          <span class="star">${stars(a.r)}</span><br><br>
-          <a href="${a.link}" target="_blank">
-            <button>Download</button>
-          </a>
-        </div>
-      </div>`;
-
-    manage.innerHTML+=`
-      <div class="card">
-        <b>${a.name}</b>
-        <button onclick="removeApp(${i})">Delete</button>
-      </div>`;
-  });
+    box.innerHTML += `
+    <div class="app">
+      <img src="${a.icon}" onerror="this.src='https://i.imgur.com/6XGQZ7v.png'">
+      <div>
+        <b>${a.name}</b><br>
+        <small>${a.cat} • ${a.size}</small><br>
+        <span class="star">${"★".repeat(a.rating)}</span><br>
+        <a href="${a.link}" target="_blank"><button>Download</button></a>
+        ${isAdmin?`<button onclick="del('${id}')">❌</button>`:""}
+      </div>
+    </div>`;
+  }
 }
 
-const nameEl=()=>document.getElementById("name");
-const iconEl=()=>document.getElementById("icon");
-const sizeEl=()=>document.getElementById("size");
-const linkEl=()=>document.getElementById("link");
-const apkEl=()=>document.getElementById("apk");
-const catEl=()=>document.getElementById("cat");
-const rateEl=()=>document.getElementById("rate");
-const search=document.getElementById("search");
-
-render();
+/* REALTIME SYNC */
+db.ref("apps").on("value",snap=>{
+  apps = snap.val() || {};
+  render();
+});
 </script>
 
 </body>
